@@ -2,7 +2,7 @@
 
 **Real-Time Truth Engine** – A journalist-grade search tool that scans, analyzes, and links to primary sources with bias transparency.
 
-Live at: [https://villaaaron440-spec.github.io/Grokipedia-/](https://villaaaron440-spec.github.io/Grokipedia-/)
+Live at: [https://villaaaron440-spec.github.io/grokipedia-truth-engine/](https://villaaaron440-spec.github.io/grokipedia-truth-engine/)
 
 ---
 
