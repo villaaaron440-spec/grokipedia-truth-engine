@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Grokipedia - Truth Engine</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Roboto+Mono:wght@300;400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #00d4ff;
+      --secondary: #0088cc;
+      --bg: #0a1a2e;
+      --card: #112240;
+      --text: #e0f7ff;
+      --accent: #00ff88;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Roboto Mono', monospace;
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+    header {
+      text-align: center;
+      padding: 3rem 1rem;
+      background: linear-gradient(135deg, #0a1a2e, #112240);
+      border-bottom: 2px solid var(--primary);
+    }
+    h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 3.5rem;
+      color: var(--primary);
+      text-shadow: 0 0 20px rgba(0, 212, 255, 0.6);
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      font-size: 1.2rem;
+      color: var(--accent);
+      font-weight: 300;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    .search-box {
+      background: var(--card);
+      padding: 2rem;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 212, 255, 0.1);
+      border: 1px solid rgba(0, 212, 255, 0.3);
+      margin-bottom: 2rem;
+    }
+    .search-input {
+      width: 100%;
+      padding: 1rem 1.5rem;
+      font-size: 1.1rem;
+      background: rgba(17, 34, 64, 0.8);
+      border: 2px solid var(--primary);
+      border-radius: 12px;
+      color: var(--text);
+      outline: none;
+      transition: all 0.3s;
+    }
+    .search-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+    }
+    .search-btn {
+      margin-top: 1rem;
+      width: 100%;
+      padding: 1rem;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .search-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 20px rgba(0, 212, 255, 0.3);
+    }
+    .results-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+    @media (max-width: 768px) {
+      .results-grid { grid-template-columns: 1fr; }
+      h1 { font-size: 2.5rem; }
+    }
+    .result-card {
+      background: var(--card);
+      padding: 1.5rem;
+      border-radius: 12px;
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      transition: 0.3s;
+    }
+    .result-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-5px);
+      box-shadow: 0 10px 25px rgba(0, 212, 255, 0.15);
+    }
+    .card-title {
+      font-family: 'Orbitron', sans-serif;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      font-size: 1.3rem;
+    }
+    .card-content {
+      font-size: 0.95rem;
+      color: #a0c4ff;
+    }
+    .placeholder {
+      color: #555;
+      font-style: italic;
+    }
+    footer {
+      text-align: center;
+      padding: 2rem;
+      margin-top: 3rem;
+      color: #666;
+      font-size: 0.9rem;
+    }
+    .glow {
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { text-shadow: 0 0 20px rgba(0,212,255,0.6); }
+      50% { text-shadow: 0 0 30px rgba(0,212,255,0.9), 0 0 40px rgba(0,255,136,0.5); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 class="glow">Grokipedia</h1>
+    <p class="subtitle">Real-Time Truth Engine • Bias-Free • Source-Linked</p>
+  </header>
+
+  <div class="container">
+    <div class="search-box">
+      <input type="text" class="search-input" placeholder="Ask anything... (e.g., 'Who funds climate denial?')" id="query-input">
+      <button class="search-btn" onclick="runSearch()">🔍 Activate Truth Engine</button>
+    </div>
+
+    <div class="results-grid">
+      <div class="result-card">
+        <div class="card-title">Sources Output</div>
+        <div class="card-content" id="sources-output">
+          <p class="placeholder">— Results will appear here —</p>
+        </div>
+      </div>
+
+      <div class="result-card">
+        <div class="card-title">News Results</div>
+        <div class="card-content">
+          <p class="placeholder">— Aggregated headlines —</p>
+        </div>
+      </div>
+
+      <div class="result-card">
+        <div class="card-title">Bias Results</div>
+        <div class="card-content">
+          <p class="placeholder">— Left / Center / Right lean —</p>
+        </div>
+      </div>
+
+      <div class="result-card">
+        <div class="card-title">Fact Check</div>
+        <div class="card-content">
+          <p class="placeholder">— Verified claims —</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    © 2025 Grokipedia • Built by Aaron Villa • <a href="https://x.com/TheWestTexican" style="color:var(--primary);">Follow @TheWestTexican</a>
+  </footer>
+
+  <script>
+    function runSearch() {
+      const query = document.getElementById('query-input').value.trim();
+      const output = document.getElementById('sources-output');
+      
+      if (!query) {
+        output.innerHTML = '<p class="placeholder">⚠️ Enter a query first.</p>';
+        return;
+      }
+
+      // Simulate processing
+      output.innerHTML = `
+        <p>🔍 Searching: "<strong>${query}</strong>"</p>
+        <p class="placeholder">— Processing sources —</p>
+        <p class="placeholder">— Analyzing bias —</p>
+        <p class="placeholder">— Compiling results —</p>
+      `;
+
+      // Simulate results after delay
+      setTimeout(() => {
+        output.innerHTML = `
+          <p>✅ <strong>Search complete.</strong></p>
+          <p class="placeholder">— 47 sources scanned —</p>
+          <p class="placeholder">— 12 left-leaning, 18 center, 17 right-leaning —</p>
+          <p class="placeholder">— Top claim: "No consensus found" —</p>
+        `;
+      }, 1800);
+    }
+
+    // Allow Enter key
+    document.getElementById('query-input').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') runSearch();
+    });
+  </script>
+</body>
+        </html>
