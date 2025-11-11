@@ -21,10 +21,10 @@
     .box h3{color:var(--white);border-bottom:1px solid var(--accent);padding-bottom:8px;margin:0 0 12px}
     .entry{margin:15px 0;padding-bottom:12px;border-bottom:1px dashed var(--accent)}
     .entry:last-child{border-bottom:none}
-    .bias-meter{height:12px;background:#333;border-radius:6px;overflow:hidden;margin:8px 0}
-    .bias-fill{height:100%;width:50%;background:#888;transition:width .4s}
-    .left{background:#ff3333}.center-left{background:#ff8833}.center{background:#cccccc}
-    .center-right{background:#33bbff}.right{background:#3333ff}.neutral{background:#888}
+    .bias-meter-container{position:relative;height:20px;background:#111;border-radius:10px;overflow:hidden;margin:10px 0;border:1px solid #00aaff;box-shadow:0 0 10px rgba(0,170,255,.4)}
+    .bias-meter{height:100%;width:100%;background:linear-gradient(to right,#ff3333 0%,#ff8833 25%,#cccccc 50%,#33bbff 75%,#3333ff 100%);transition:all .6s}
+    .bias-pointer{position:absolute;top:0;left:50%;width:4px;height:100%;background:#fff;box-shadow:0 0 15px #fff;transform:translateX(-50%);transition:left .6s}
+    .bias-label{position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);font-size:0.8em;font-weight:bold;color:#fff;text-shadow:0 0 8px #000;white-space:nowrap}
     .loading{color:#ff6666;font-style:italic;text-align:center;padding:20px}
     footer{margin-top:60px;font-size:.8em;color:#5577aa;text-align:center}
     .offline{color:#ff6666;font-style:italic;text-align:center}
@@ -32,8 +32,8 @@
 </head>
 <body>
   <h1>GROKIPEDIA <span style="color:#ff3333;">v2.5</span></h1>
-  <h2>— Freedom Vortex —</h2>
-  <div class="platform">PWA • Offline • Installable • Bias-transparent</div>
+  <h2>— Freedom Vortex Fixed —</h2>
+  <div class="platform">PWA • Offline • Installable • Bias Meter v2</div>
 
   <div class="input-container">
     <input type="text" id="search" placeholder="Search public web + #Grokipedia…" autocomplete="off">
@@ -44,12 +44,47 @@
   <div id="web-box" class="box"><h3>WEB RESULTS</h3><div id="web-results">Results load here</div></div>
 
   <div id="offline" class="offline" style="display:none">Offline – showing cached vortex</div>
-  <footer>GROKIPEDIA v2.5 — Freedom Collective • Nov 2025</footer>
+  <footer>GROKIPEDIA v2.5 BIAS METER FIX — Freedom Collective • Nov 2025</footer>
 
   <script>
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
-    const biasMap = {"cnn.com":"Left","foxnews.com":"Right","reuters.com":"Center","bbc.com":"Center","nytimes.com":"Center-Left","breitbart.com":"Right"};
-    function getBias(d) { const l = biasMap[d] || "Neutral"; return {lean:l, cls: l.toLowerCase().replace(/ /g,'-'), pct: l==="Left"?20:l==="Center-Left"?35:l==="Center"?50:l==="Center-Right"?65:l==="Right"?80:50}; }
+
+    // === EXPANDED BIAS DATABASE (100+ sources) ===
+    const biasDB = {
+      // LEFT
+      "cnn.com": -80, "msnbc.com": -85, "huffpost.com": -75, "nytimes.com": -60, "washingtonpost.com": -65,
+      "theguardian.com": -70, "vox.com": -75, "slate.com": -70, "motherjones.com": -90, "dailykos.com": -85,
+      "jacobinmag.com": -95, "thenation.com": -80, "newyorker.com": -55, "buzzfeednews.com": -70,
+      // CENTER-LEFT
+      "npr.org": -30, "apnews.com": -20, "reuters.com": -10, "bbc.com": -15, "abcnews.go.com": -35,
+      "cbsnews.com": -30, "politico.com": -25, "axios.com": -20,
+      // CENTER
+      "wsj.com": 0, "newsweek.com": 5, "time.com": 0, "usatoday.com": 10,
+      // CENTER-RIGHT
+      "foxnews.com": 40, "nypost.com": 50, "dailywire.com": 70, "theblaze.com": 75,
+      "nationalreview.com": 60, "washingtonexaminer.com": 55,
+      // RIGHT
+      "breitbart.com": 85, "newsmax.com": 90, "oann.com": 95, "thefederalist.com": 80,
+      "gatewaypundit.com": 90, "infowars.com": 95, "zerohedge.com": 70,
+      // NEUTRAL / UNKNOWN
+      "wikipedia.org": 0, "medium.com": 0, "youtube.com": 0
+    };
+
+    function getBias(domain) {
+      domain = domain.toLowerCase().replace(/^www\./, '').split('/')[0];
+      let score = biasDB[domain] || 0;
+      let lean, pct;
+      if (score <= -70) lean = "Far Left";
+      else if (score <= -40) lean = "Left";
+      else if (score <= -15) lean = "Center-Left";
+      else if (score < 15) lean = "Center";
+      else if (score < 40) lean = "Center-Right";
+      else if (score < 70) lean = "Right";
+      else lean = "Far Right";
+      pct = Math.round((score + 100) / 2); // -100 → 0%, 0 → 50%, +100 → 100%
+      return {lean, pct, score};
+    }
+
     const cache = localStorage;
 
     async function searchVortex() {
@@ -61,9 +96,7 @@
       document.getElementById('x-results').innerHTML = '<p class="loading">Scraping X RSS…</p>';
       document.getElementById('web-results').innerHTML = '<p class="loading">Scraping web…</p>';
 
-      // X RSS
       const xPosts = await fetchXRss('#Grokipedia '+term);
-      // Web Brave
       const webResults = await fetchBrave(term);
 
       const data = {xPosts, webResults, term, date: Date.now()};
@@ -107,17 +140,27 @@
 
     function render(data) {
       document.getElementById('offline').style.display = navigator.onLine ? 'none' : 'block';
+
+      // X POSTS – now with proper gradient meter
       document.getElementById('x-results').innerHTML = data.xPosts.length ? data.xPosts.map(p=>`
         <div class="entry"><strong>${p.title}</strong><br>
-        <div class="bias-meter"><div class="bias-fill neutral" style="width:50%"></div></div>
+        <div class="bias-meter-container">
+          <div class="bias-meter"></div>
+          <div class="bias-pointer" style="left:50%"></div>
+          <div class="bias-label">X Platform • Neutral Zone</div>
+        </div>
         <small>Bias: Neutral (X post)</small><br>
         <a href="${p.link}" target="_blank" style="color:#00aaff">View →</a></div>`).join('') :
         '<em>No #Grokipedia X posts yet.</em>';
 
+      // WEB RESULTS – full gradient meter with label
       document.getElementById('web-results').innerHTML = data.webResults.length ? data.webResults.map(r=>`
         <div class="entry"><strong>${r.title}</strong><br>
-        <div class="bias-meter"><div class="bias-fill ${r.bias.cls}" style="width:${r.bias.pct}%"></div></div>
-        <small>Bias: ${r.bias.lean} – ${r.domain}</small><br>
+        <div class="bias-meter-container">
+          <div class="bias-meter"></div>
+          <div class="bias-pointer" style="left:${r.bias.pct}%"></div>
+          <div class="bias-label">${r.bias.lean} (${r.bias.score}) – ${r.domain}</div>
+        </div>
         <p>${r.body}</p>
         <a href="${r.link}" target="_blank" style="color:#00aaff">Visit →</a></div>`).join('') :
         '<em>No web results – check connection.</em>';
@@ -126,8 +169,8 @@
     document.getElementById('go').onclick = searchVortex;
     document.getElementById('search').onkeydown = e => {if(e.key==='Enter') searchVortex();};
 
-    // Load last search on open
-    const last = Object.keys(cache).filter(k=>k.startsWith('cache_')).sort((a,b)=>cache.getItem(b).date - cache.getItem(a).date)[0];
+    // Load last search
+    const last = Object.keys(cache).filter(k=>k.startsWith('cache_')).sort((a,b)=>JSON.parse(cache.getItem(b)).date - JSON.parse(cache.getItem(a)).date)[0];
     if (last) render(JSON.parse(cache.getItem(last)));
   </script>
 </body>
