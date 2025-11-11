@@ -1,127 +1,325 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Grokipedia</title>
-  <style>
-    body {font-family:Arial,Helvetica,sans-serif;margin:40px;line-height:1.6;background:#f9f9f9;color:#222;}
-    h1 {font-size:2em;color:#111;}
-    h2 {font-size:1.3em;color:#444;border-bottom:2px solid #ddd;padding-bottom:5px;}
-    input {padding:8px;font-size:1em;width:220px;margin-right:8px;}
-    button {padding:8px 12px;font-size:1em;background:#0077cc;color:white;border:none;cursor:pointer;}
-    button:hover {background:#005fa3;}
-    .section {margin:30px 0;padding:15px;background:white;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.1);}
-    .source {margin:8px 0;font-size:0.95em;}
-    .source a {color:#0077cc;text-decoration:none;}
-    .source a:hover {text-decoration:underline;}
-    .bias {display:inline-block;padding:2px 6px;border-radius:4px;font-size:0.8em;margin-left:8px;}
-    .left {background:#ffcccc;color:#900;}
-    .center {background:#ffffcc;color:#660;}
-    .right {background:#ccddff;color:#006;}
-    .loading {color:#777;font-style:italic;}
-  </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Grokopedia v2.3</title>
+    <style>
+        :root {
+            --primary: #1DA1F2;
+            --bg: #15202B;
+            --card: #192734;
+            --text: #E7E9EA;
+            --border: #38444D;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.5;
+        }
+        .container {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        h1 {
+            font-size: 2.5rem;
+            color: var(--primary);
+        }
+        .search-box {
+            display: flex;
+            margin-bottom: 2rem;
+            background: var(--card);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 1rem;
+            border: none;
+            background: transparent;
+            color: var(--text);
+            font-size: 1.1rem;
+        }
+        input:focus { outline: none; }
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0 1.5rem;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background: #1a91da; }
+        .results {
+            display: grid;
+            gap: 1.5rem;
+        }
+        .article {
+            background: var(--card);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            transition: transform 0.2s;
+        }
+        .article:hover { transform: translateY(-4px); }
+        .article img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+        }
+        .content {
+            padding: 1rem;
+        }
+        .source {
+            font-size: 0.85rem;
+            color: #8899A6;
+            margin-bottom: 0.5rem;
+        }
+        .title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+        }
+        .snippet {
+            font-size: 0.95rem;
+            color: #AAB8C2;
+            margin-bottom: 1rem;
+        }
+        .meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #8899A6;
+        }
+        .bias-meter {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(21, 32, 43, 0.95);
+            padding: 1rem;
+            border-top: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+        }
+        .bias-label {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+        .meter-container {
+            width: 100%;
+            height: 20px;
+            background: #38444D;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        .meter-fill {
+            height: 100%;
+            width: 50%;
+            background: linear-gradient(90deg, #FF6B6B, #FFD93D, #6BCB77);
+            transition: width 0.6s ease;
+        }
+        .meter-marker {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            width: 2px;
+            background: white;
+            transform: translateX(-50%);
+        }
+        .meter-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            color: #8899A6;
+        }
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #8899A6;
+        }
+        .no-results {
+            text-align: center;
+            padding: 3rem;
+            color: #8899A6;
+        }
+        @media (max-width: 600px) {
+            h1 { font-size: 2rem; }
+            .search-box { flex-direction: column; }
+            button { padding: 1rem; }
+        }
+    </style>
 </head>
 <body>
-  <h1>Grokipedia</h1>
-  <p><strong>Real-Time Truth Engine • Bias-Free • Source-Linked</strong></p>
+    <div class="container">
+        <header>
+            <h1>Grokopedia <small style="font-size:0.6em;color:#8899A6;">v2.3</small></h1>
+        </header>
 
-  <div class="section" id="sources">
-    <h2>Sources Output</h2>
-    <div id="sourcesOutput">-- Results will appear here --</div>
-  </div>
+        <div class="search-box">
+            <input type="text" id="query" placeholder="Enter person, topic, or event..." autocomplete="off" />
+            <button id="searchBtn">Search</button>
+        </div>
 
-  <div class="section" id="news">
-    <h2>News Results</h2>
-    <input type="text" id="query" placeholder="Enter topic..." />
-    <button onclick="fetchNews()">Get Headlines</button>
-    <div id="newsOutput" style="margin-top:15px;">-- Aggregated headlines --</div>
-  </div>
+        <div id="results" class="results"></div>
+    </div>
 
-  <div class="section" id="bias">
-    <h2>Bias Results</h2>
-    <div id="biasOutput">-- Left / Center / Right lean --</div>
-  </div>
+    <!-- Bias Meter (Fixed Bottom) -->
+    <div class="bias-meter" id="biasMeter" style="display:none;">
+        <div class="bias-label">Overall Media Bias: <span id="biasValue">Neutral</span></div>
+        <div class="meter-container">
+            <div class="meter-fill" id="meterFill"></div>
+            <div class="meter-marker" id="leftMarker" style="left:33.33%;"></div>
+            <div class="meter-marker" id="rightMarker" style="left:66.66%;"></div>
+        </div>
+        <div class="meter-labels">
+            <span>Left</span>
+            <span>Center-Left</span>
+            <span>Center</span>
+            <span>Center-Right</span>
+            <span>Right</span>
+        </div>
+    </div>
 
-  <div class="section" id="factcheck">
-    <h2>Fact Check</h2>
-    <div id="factcheckOutput">-- Verified claims --</div>
-  </div>
+    <script>
+        // === CONFIG: Known source bias scores (-100 left, 0 center, +100 right) ===
+        const SOURCE_BIAS = {
+            // Left-leaning
+            "cnn": -65, "msnbc": -70, "nytimes": -55, "washingtonpost": -60,
+            "huffpost": -75, "theguardian": -60, "vox": -65, "slate": -70,
+            "motherjones": -80, "dailykos": -85,
 
-  <hr style="border:1px dashed #ccc;margin:40px 0;" />
+            // Center / Mixed
+            "ap": 0, "reuters": 0, "bbc": -10, "npr": -20,
+            "axios": -15, "thehill": 5,
 
-  <script>
-    const sources = [
-      {name: "BBC News", rss: "https://feeds.bbci.co.uk/news/rss.xml", bias: "center"},
-      {name: "Reuters", rss: "https://agency.reuters.com/en/rss.xml", bias: "center"},
-      {name: "AP News", rss: "https://feeds.feedburner.com/AssociatedPress", bias: "center"},
-      {name: "NPR", rss: "https://feeds.npr.org/1001/rss.xml", bias: "left"},
-      {name: "Fox News", rss: "http://feeds.foxnews.com/foxnews/latest", bias: "right"},
-      {name: "Washington Post", rss: "http://feeds.washingtonpost.com/rss/politics", bias: "left"},
-      {name: "New York Post", rss: "https://nypost.com/feed/", bias: "right"}
-    ];
+            // Right-leaning
+            "foxnews": 70, "breitbart": 85, "dailywire": 75, "nypost": 60,
+            "newsmax": 80, "oann": 90, "theblaze": 75, "washingtonexaminer": 65
+        };
 
-    const biasMap = {left: "Left", center: "Center", right: "Right"};
-    const biasClass = {left: "left", center: "center", right: "right"};
+        const searchBtn = document.getElementById('searchBtn');
+        const queryInput = document.getElementById('query');
+        const resultsDiv = document.getElementById('results');
+        const biasMeter = document.getElementById('biasMeter');
+        const meterFill = document.getElementById('meterFill');
+        const biasValue = document.getElementById('biasValue');
 
-    async function fetchRSS(url) {
-      const proxy = "https://api.allorigins.win/raw?url=";
-      const res = await fetch(proxy + encodeURIComponent(url));
-      const text = await res.text();
-      const parser = new DOMParser();
-      return parser.parseFromString(text, "text/xml");
-    }
+        // Mock news fetch (replace with real API later)
+        async function fetchNews(query) {
+            // Simulate API delay
+            await new Promise(r => setTimeout(r, 800));
 
-    async function fetchNews() {
-      const query = document.getElementById("query").value.toLowerCase().trim() || "";
-      const newsDiv = document.getElementById("newsOutput");
-      const sourcesDiv = document.getElementById("sourcesOutput");
-      const biasDiv = document.getElementById("biasOutput");
+            // === MOCK DATA ONLY - REPLACE WITH REAL X/NEWS API ===
+            const mockResults = [
+                { title: `${query} makes bold statement on climate`, source: "CNN", url: "#", img: "", snippet: "In a fiery speech, the figure doubled down on green energy...", date: "2h ago" },
+                { title: `${query} accused of corruption—again`, source: "Fox News", url: "#", img: "", snippet: "Conservative outlets claim new evidence proves wrongdoing...", date: "4h ago" },
+                { title: `Who is ${query}? A balanced profile`, source: "AP", url: "#", img: "", snippet: "Born in 1975, they rose through the ranks via...", date: "6h ago" },
+                { title: `${query} praised for economic policies`, source: "The Hill", url: "#", img: "", snippet: "Analysts say GDP grew 3.2% under their leadership...", date: "1d ago" },
+                { title: `${query} slammed for foreign policy blunder`, source: "Breitbart", url: "#", img: "", snippet: "Critics say the move alienated key allies...", date: "12h ago" }
+            ];
 
-      newsDiv.innerHTML = "<p class='loading'>Fetching headlines...</p>";
-      sourcesDiv.innerHTML = "";
-      biasDiv.innerHTML = "";
-
-      const results = {left:0, center:0, right:0};
-
-      for (const src of sources) {
-        try {
-          const xml = await fetchRSS(src.rss);
-          const items = xml.querySelectorAll("item");
-          let count = 0;
-          items.forEach(item => {
-            if (count >= 5) return;
-            const title = item.querySelector("title")?.textContent || "";
-            const link = item.querySelector("link")?.textContent || "";
-            const desc = item.querySelector("description")?.textContent || "";
-            if (query && !title.toLowerCase().includes(query) && !desc.toLowerCase().includes(query)) return;
-
-            const div = document.createElement("div");
-            div.className = "source";
-            div.innerHTML = `<a href="${link}" target="_blank">${title}</a> 
-              <span class="bias ${biasClass[src.bias]}">${biasMap[src.bias]}</span>`;
-            newsDiv.appendChild(div);
-            count++;
-            results[src.bias]++;
-          });
-          if (count > 0) {
-            sourcesDiv.innerHTML += `<p>• ${src.name} (${count} stories)</p>`;
-          }
-        } catch (e) {
-          console.log(`Failed: ${src.name}`);
+            return mockResults;
         }
-      }
 
-      if (newsDiv.innerHTML.includes("loading")) {
-        newsDiv.innerHTML = "<p>No results found. Try a different topic.</p>";
-      }
+        // Calculate average bias
+        function calculateBias(articles) {
+            let total = 0;
+            let count = 0;
 
-      biasDiv.innerHTML = `
-        <p>Left: ${results.left} • Center: ${results.center} • Right: ${results.right}</p>
-      `;
-    }
+            articles.forEach(article => {
+                const domain = article.source.toLowerCase().replace(/\s+/g, '').replace('.com', '');
+                const bias = SOURCE_BIAS[domain] || 0;
+                total += bias;
+                count++;
+            });
 
-    // Auto-load top headlines on page load
-    window.onload = () => fetchNews();
-  </script>
+            if (count === 0) return 0;
+            const avg = total / count;
+            return Math.max(-100, Math.min(100, avg));
+        }
+
+        // Update bias meter
+        function updateBiasMeter(bias) {
+            biasMeter.style.display = 'block';
+            const percent = ((bias + 100) / 200) * 100;
+            meterFill.style.width = percent + '%';
+
+            let label = "Neutral";
+            if (bias <= -70) label = "Strong Left";
+            else if (bias <= -40) label = "Left";
+            else if (bias <= -15) label = "Center-Left";
+            else if (bias < 15) label = "Neutral";
+            else if (bias < 40) label = "Center-Right";
+            else if (bias < 70) label = "Right";
+            else label = "Strong Right";
+
+            biasValue.textContent = label;
+        }
+
+        // Render results
+        function renderResults(articles) {
+            if (articles.length === 0) {
+                resultsDiv.innerHTML = '<div class="no-results">No results found. Try a different query.</div>';
+                biasMeter.style.display = 'none';
+                return;
+            }
+
+            const bias = calculateBias(articles);
+            updateBiasMeter(bias);
+
+            resultsDiv.innerHTML = articles.map(article => `
+                <div class="article">
+                    ${article.img ? `<img src="${article.img}" alt="">` : '<div style="height:180px;background:#38444D;"></div>'}
+                    <div class="content">
+                        <div class="source">${article.source} • ${article.date}</div>
+                        <div class="title">${article.title}</div>
+                        <div class="snippet">${article.snippet}</div>
+                        <div class="meta">
+                            <a href="${article.url}" style="color:var(--primary);text-decoration:none;">Read more →</a>
+                            <span>Bias: ${SOURCE_BIAS[article.source.toLowerCase().replace(/\s+/g,'').replace('.com','')] || 0}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Search handler
+        async function performSearch() {
+            const query = queryInput.value.trim();
+            if (!query) return;
+
+            resultsDiv.innerHTML = '<div class="loading">Searching the X universe...</div>';
+
+            try {
+                const articles = await fetchNews(query);
+                renderResults(articles);
+            } catch (err) {
+                resultsDiv.innerHTML = '<div class="no-results">Error fetching news. Try again.</div>';
+            }
+        }
+
+        // Event Listeners
+        searchBtn.addEventListener('click', performSearch);
+        queryInput.addEventListener('keypress', e => {
+            if (e.key === 'Enter') performSearch();
+        });
+
+        // Auto-focus input
+        queryInput.focus();
+    </script>
 </body>
 </html>
