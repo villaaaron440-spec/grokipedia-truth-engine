@@ -28,6 +28,7 @@
     .loading{color:#ff6666;font-style:italic;text-align:center;padding:20px}
     footer{margin-top:60px;font-size:.8em;color:#5577aa;text-align:center}
     .offline{color:#ff6666;font-style:italic;text-align:center}
+    .note{font-size:.85em;color:#88aaff;margin:8px 0}
   </style>
 </head>
 <body>
@@ -44,36 +45,33 @@
   <div id="web-box" class="box"><h3>WEB RESULTS</h3><div id="web-results">Results load here</div></div>
 
   <div id="offline" class="offline" style="display:none">Offline – showing cached vortex</div>
-  <footer>GROKIPEDIA v2.5 BIAS METER FIX — Creator Aaron Villa Nov 2025</footer>
+  <footer>GROKIPEDIA v2.5 BIAS METER FIX — Creator Aaron Villa Nov 2025<br>
+  <small>Updated Nov 2026 • Keyless free sources only</small></footer>
 
   <script>
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 
-    // === EXPANDED BIAS DATABASE (100+ sources) ===
+    const PROXY = 'https://proxy.cors.dev/';
+
+    // === BIAS DATABASE (unchanged) ===
     const biasDB = {
-      // LEFT
       "cnn.com": -80, "msnbc.com": -85, "huffpost.com": -75, "nytimes.com": -60, "washingtonpost.com": -65,
       "theguardian.com": -70, "vox.com": -75, "slate.com": -70, "motherjones.com": -90, "dailykos.com": -85,
       "jacobinmag.com": -95, "thenation.com": -80, "newyorker.com": -55, "buzzfeednews.com": -70,
-      // CENTER-LEFT
       "npr.org": -30, "apnews.com": -20, "reuters.com": -10, "bbc.com": -15, "abcnews.go.com": -35,
       "cbsnews.com": -30, "politico.com": -25, "axios.com": -20,
-      // CENTER
       "wsj.com": 0, "newsweek.com": 5, "time.com": 0, "usatoday.com": 10,
-      // CENTER-RIGHT
       "foxnews.com": 40, "nypost.com": 50, "dailywire.com": 70, "theblaze.com": 75,
       "nationalreview.com": 60, "washingtonexaminer.com": 55,
-      // RIGHT
       "breitbart.com": 85, "newsmax.com": 90, "oann.com": 95, "thefederalist.com": 80,
       "gatewaypundit.com": 90, "infowars.com": 95, "zerohedge.com": 70,
-      // NEUTRAL / UNKNOWN
-      "wikipedia.org": 0, "medium.com": 0, "youtube.com": 0
+      "wikipedia.org": 0, "medium.com": 0, "youtube.com": 0, "x.com": 0, "twitter.com": 0
     };
 
     function getBias(domain) {
-      domain = domain.toLowerCase().replace(/^www\./, '').split('/')[0];
+      domain = (domain || '').toLowerCase().replace(/^www\./, '').split('/')[0];
       let score = biasDB[domain] || 0;
-      let lean, pct;
+      let lean;
       if (score <= -70) lean = "Far Left";
       else if (score <= -40) lean = "Left";
       else if (score <= -15) lean = "Center-Left";
@@ -81,7 +79,7 @@
       else if (score < 40) lean = "Center-Right";
       else if (score < 70) lean = "Right";
       else lean = "Far Right";
-      pct = Math.round((score + 100) / 2); // -100 → 0%, 0 → 50%, +100 → 100%
+      const pct = Math.round((score + 100) / 2);
       return {lean, pct, score};
     }
 
@@ -90,88 +88,143 @@
     async function searchVortex() {
       const term = document.getElementById('search').value.trim();
       if (!term) return;
-      const key = 'cache_'+term;
+      const key = 'cache_' + term;
       if (cache.getItem(key)) { render(JSON.parse(cache.getItem(key))); return; }
 
-      document.getElementById('x-results').innerHTML = '<p class="loading">Scraping X RSS…</p>';
-      document.getElementById('web-results').innerHTML = '<p class="loading">Scraping web…</p>';
+      document.getElementById('x-results').innerHTML = '<p class="loading">Searching X…</p>';
+      document.getElementById('web-results').innerHTML = '<p class="loading">Fetching web results…</p>';
 
-      const xPosts = await fetchXRss('#Grokipedia '+term);
-      const webResults = await fetchBrave(term);
+      const [xPosts, webResults] = await Promise.all([
+        fetchXPosts(term),
+        fetchWeb(term)
+      ]);
 
       const data = {xPosts, webResults, term, date: Date.now()};
-      cache.setItem(key, JSON.stringify(data));
+      try { cache.setItem(key, JSON.stringify(data)); } catch(e) {}
       render(data);
     }
 
-    async function fetchXRss(q) {
-      try {
-        const rss = `https://x.com/search/rss?q=${encodeURIComponent(q)}`;
-        const proxy = `https://corsproxy.io/?${encodeURIComponent(rss)}`;
-        const r = await fetch(proxy, {signal: AbortSignal.timeout(9000)});
-        const txt = await r.text();
-        const doc = new DOMParser().parseFromString(txt, 'text/xml');
-        return Array.from(doc.querySelectorAll('item')).slice(0,10).map(i=>({
-          title: i.querySelector('title')?.textContent.replace(/^[^:]+: /,'') || '',
-          body: i.querySelector('description')?.textContent || '',
-          link: i.querySelector('link')?.textContent || '#'
-        }));
-      } catch { return []; }
+    // Best-effort X posts (free public search is heavily restricted in 2026)
+    async function fetchXPosts(term) {
+      const q = '#Grokipedia ' + term;
+      const xSearchUrl = `https://x.com/search?q=${encodeURIComponent(q)}&src=typed_query&f=live`;
+      
+      // Attempt 1: Try a remaining Nitter-style RSS via proxy (often blocked)
+      const nitterAttempts = [
+        `https://nitter.netbub.com/search/rss?q=${encodeURIComponent(q)}`,
+        `https://nitter.tiekoetter.com/search/rss?q=${encodeURIComponent(q)}`
+      ];
+      for (const url of nitterAttempts) {
+        try {
+          const r = await fetch(PROXY + url, {signal: AbortSignal.timeout(8000)});
+          if (!r.ok) continue;
+          const txt = await r.text();
+          if (txt.includes('<item>')) {
+            const doc = new DOMParser().parseFromString(txt, 'text/xml');
+            const items = Array.from(doc.querySelectorAll('item')).slice(0, 8).map(i => ({
+              title: (i.querySelector('title')?.textContent || '').replace(/^[^:]+:\s*/, ''),
+              body: i.querySelector('description')?.textContent || '',
+              link: i.querySelector('link')?.textContent || xSearchUrl
+            }));
+            if (items.length) return items;
+          }
+        } catch {}
+      }
+
+      // Fallback: direct link + note
+      return [{
+        title: 'Search #Grokipedia on X',
+        body: 'Live free public X search is restricted. Click to open the official search.',
+        link: xSearchUrl
+      }];
     }
 
-    async function fetchBrave(q) {
+    // Reliable keyless web results
+    async function fetchWeb(term) {
+      const results = [];
+
+      // 1. Wikipedia opensearch (has good CORS or works via proxy)
       try {
-        const url = `https://search.brave.com/search?q=${encodeURIComponent(q)}&source=web`;
-        const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-        const r = await fetch(proxy, {signal: AbortSignal.timeout(9000)});
-        const html = await r.text();
-        const doc = new DOMParser().parseFromString(html, 'text/html');
-        return Array.from(doc.querySelectorAll('.snippet')).slice(0,8).map(s=>{
-          const a = s.querySelector('a');
-          const title = a?.innerText || 'No title';
-          const link = a?.href || '#';
-          const desc = s.querySelector('.snippet-description')?.innerText || '';
-          const domain = new URL(link).hostname.replace('www.','');
-          const bias = getBias(domain);
-          return {title, body: desc.substring(0,220)+'…', link, domain, bias};
-        });
-      } catch { return []; }
+        const wikiUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(term)}&limit=6&format=json&origin=*`;
+        const r = await fetch(wikiUrl, {signal: AbortSignal.timeout(7000)});
+        const data = await r.json();
+        if (data && data[1]) {
+          for (let i = 0; i < data[1].length; i++) {
+            const title = data[1][i];
+            const url = data[3][i];
+            const domain = 'wikipedia.org';
+            results.push({
+              title,
+              body: data[2][i] || 'Wikipedia article',
+              link: url,
+              domain,
+              bias: getBias(domain)
+            });
+          }
+        }
+      } catch {}
+
+      // 2. DuckDuckGo Instant Answer (via proxy if needed)
+      try {
+        const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(term)}&format=json&no_html=1&skip_disambig=1`;
+        const r = await fetch(PROXY + ddgUrl, {signal: AbortSignal.timeout(7000)});
+        const d = await r.json();
+        if (d.AbstractText) {
+          results.unshift({
+            title: d.Heading || term,
+            body: d.AbstractText.substring(0, 280) + (d.AbstractText.length > 280 ? '…' : ''),
+            link: d.AbstractURL || '#',
+            domain: d.AbstractURL ? new URL(d.AbstractURL).hostname.replace(/^www\./,'') : 'duckduckgo.com',
+            bias: getBias(d.AbstractURL ? new URL(d.AbstractURL).hostname : '')
+          });
+        }
+      } catch {}
+
+      return results.slice(0, 8);
     }
 
     function render(data) {
       document.getElementById('offline').style.display = navigator.onLine ? 'none' : 'block';
 
-      // X POSTS – now with proper gradient meter
-      document.getElementById('x-results').innerHTML = data.xPosts.length ? data.xPosts.map(p=>`
-        <div class="entry"><strong>${p.title}</strong><br>
-        <div class="bias-meter-container">
-          <div class="bias-meter"></div>
-          <div class="bias-pointer" style="left:50%"></div>
-          <div class="bias-label">X Platform • Neutral Zone</div>
-        </div>
-        <small>Bias: Neutral (X post)</small><br>
-        <a href="${p.link}" target="_blank" style="color:#00aaff">View →</a></div>`).join('') :
-        '<em>No #Grokipedia X posts yet.</em>';
+      document.getElementById('x-results').innerHTML = data.xPosts.length ? data.xPosts.map(p => `
+        <div class="entry">
+          <strong>${escapeHtml(p.title)}</strong><br>
+          <div class="bias-meter-container">
+            <div class="bias-meter"></div>
+            <div class="bias-pointer" style="left:50%"></div>
+            <div class="bias-label">X Platform • Neutral</div>
+          </div>
+          <small>Bias: Neutral (X)</small><br>
+          <p class="note">${escapeHtml(p.body || '')}</p>
+          <a href="${p.link}" target="_blank" style="color:#00aaff">View on X →</a>
+        </div>`).join('') : '<em>No X results available.</em>';
 
-      // WEB RESULTS – full gradient meter with label
-      document.getElementById('web-results').innerHTML = data.webResults.length ? data.webResults.map(r=>`
-        <div class="entry"><strong>${r.title}</strong><br>
-        <div class="bias-meter-container">
-          <div class="bias-meter"></div>
-          <div class="bias-pointer" style="left:${r.bias.pct}%"></div>
-          <div class="bias-label">${r.bias.lean} (${r.bias.score}) – ${r.domain}</div>
-        </div>
-        <p>${r.body}</p>
-        <a href="${r.link}" target="_blank" style="color:#00aaff">Visit →</a></div>`).join('') :
-        '<em>No web results – check connection.</em>';
+      document.getElementById('web-results').innerHTML = data.webResults.length ? data.webResults.map(r => `
+        <div class="entry">
+          <strong>${escapeHtml(r.title)}</strong><br>
+          <div class="bias-meter-container">
+            <div class="bias-meter"></div>
+            <div class="bias-pointer" style="left:${r.bias.pct}%"></div>
+            <div class="bias-label">\( {r.bias.lean} ( \){r.bias.score}) – ${r.domain}</div>
+          </div>
+          <p>${escapeHtml(r.body)}</p>
+          <a href="${r.link}" target="_blank" style="color:#00aaff">Visit →</a>
+        </div>`).join('') : '<em>No web results – try a different term.</em>';
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
 
     document.getElementById('go').onclick = searchVortex;
-    document.getElementById('search').onkeydown = e => {if(e.key==='Enter') searchVortex();};
+    document.getElementById('search').onkeydown = e => { if (e.key === 'Enter') searchVortex(); };
 
     // Load last search
-    const last = Object.keys(cache).filter(k=>k.startsWith('cache_')).sort((a,b)=>JSON.parse(cache.getItem(b)).date - JSON.parse(cache.getItem(a)).date)[0];
-    if (last) render(JSON.parse(cache.getItem(last)));
+    try {
+      const last = Object.keys(cache).filter(k => k.startsWith('cache_'))
+        .sort((a, b) => JSON.parse(cache.getItem(b)).date - JSON.parse(cache.getItem(a)).date)[0];
+      if (last) render(JSON.parse(cache.getItem(last)));
+    } catch {}
   </script>
 </body>
 </html>
