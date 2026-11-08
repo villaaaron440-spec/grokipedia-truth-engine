@@ -17,60 +17,77 @@
     .input-container{max-width:100%;margin:20px auto}
     input[type="text"]{width:100%;background:var(--dark);color:var(--accent);border:2px solid var(--accent);border-radius:12px;padding:16px;font-size:1.2em;box-shadow:0 0 12px rgba(0,170,255,.3);box-sizing:border-box}
     button{margin:20px auto;display:block;padding:14px 40px;font-size:1.3em;background:var(--accent);color:#000;border:none;border-radius:12px;cursor:pointer;font-weight:bold;box-shadow:0 0 15px rgba(0,170,255,.6)}
-    .box{margin:20px 0;background:rgba(17,34,64,.8);border:1px solid var(--accent);border-radius:12px;padding:18px;color:var(--text)}
-    .box h3{color:var(--white);border-bottom:1px solid var(--accent);padding-bottom:8px;margin:0 0 12px}
-    .entry{margin:15px 0;padding-bottom:12px;border-bottom:1px dashed var(--accent)}
-    .entry:last-child{border-bottom:none}
-    .bias-meter-container{position:relative;height:20px;background:#111;border-radius:10px;overflow:hidden;margin:10px 0;border:1px solid #00aaff;box-shadow:0 0 10px rgba(0,170,255,.4)}
-    .bias-meter{height:100%;width:100%;background:linear-gradient(to right,#ff3333 0%,#ff8833 25%,#cccccc 50%,#33bbff 75%,#3333ff 100%);transition:all .6s}
-    .bias-pointer{position:absolute;top:0;left:50%;width:4px;height:100%;background:#fff;box-shadow:0 0 15px #fff;transform:translateX(-50%);transition:left .6s}
-    .bias-label{position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);font-size:0.8em;font-weight:bold;color:#fff;text-shadow:0 0 8px #000;white-space:nowrap}
-    .loading{color:#ff6666;font-style:italic;text-align:center;padding:20px}
-    footer{margin-top:60px;font-size:.8em;color:#5577aa;text-align:center}
-    .offline{color:#ff6666;font-style:italic;text-align:center}
-    .note{font-size:.85em;color:#88aaff;margin:8px 0}
+    .box{background:var(--dark);border:1px solid var(--accent);border-radius:12px;padding:15px;margin:15px 0;box-shadow:0 0 10px rgba(0,170,255,.2)}
+    .entry{margin:12px 0;padding:10px;border-left:3px solid var(--accent)}
+    .bias-meter-container{position:relative;height:28px;margin:8px 0;background:#1a2a40;border-radius:14px;overflow:hidden}
+    .bias-meter{position:absolute;inset:0;background:linear-gradient(to right,#ff4444 0%,#ffaa44 25%,#ffffff 50%,#44aaff 75%,#4444ff 100%)}
+    .bias-pointer{position:absolute;top:0;width:4px;height:100%;background:#fff;box-shadow:0 0 8px #fff;transform:translateX(-50%)}
+    .bias-label{text-align:center;font-size:.85em;margin-top:2px;color:var(--text)}
+    .loading{text-align:center;color:var(--text);font-style:italic}
+    .note{font-size:.9em;color:#88aaff}
+    a{color:var(--accent);text-decoration:none}
+    a:hover{text-decoration:underline}
+    #offline{display:none;text-align:center;color:#ffaa44;margin:10px 0}
   </style>
 </head>
 <body>
-  <h1>GROKIPEDIA <span style="color:#ff3333;">v2.5</span></h1>
+  <h1>GROKIPEDIA v2.5</h1>
   <h2>— Freedom Vortex Fixed —</h2>
   <div class="platform">PWA • Offline • Installable • Bias Meter v2</div>
+  <div id="offline">Offline mode — showing cached results</div>
 
   <div class="input-container">
-    <input type="text" id="search" placeholder="Search public web + #Grokipedia…" autocomplete="off">
+    <input type="text" id="search" placeholder="Search the Vortex…" autocomplete="off"/>
+    <button id="go">Search</button>
   </div>
-  <button id="go">ENTER THE VORTEX</button>
 
-  <div id="x-box" class="box"><h3>#GROKIPEDIA X POSTS</h3><div id="x-results">Ready</div></div>
-  <div id="web-box" class="box"><h3>WEB RESULTS</h3><div id="web-results">Results load here</div></div>
+  <div class="box">
+    <h3 style="text-align:center;margin:0 0 10px">#GROKIPEDIA X POSTS</h3>
+    <div id="x-results"><p class="loading">Ready</p></div>
+  </div>
 
-  <div id="offline" class="offline" style="display:none">Offline – showing cached vortex</div>
-  <footer>GROKIPEDIA v2.5 BIAS METER FIX — Creator Aaron Villa Nov 2025<br>
-  <small>Updated Nov 2026 • Keyless free sources only</small></footer>
+  <div class="box">
+    <h3 style="text-align:center;margin:0 0 10px">WEB RESULTS</h3>
+    <div id="web-results"><p class="loading">Results load here</p></div>
+  </div>
 
   <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
-
     const PROXY = 'https://proxy.cors.dev/';
 
-    // === BIAS DATABASE (unchanged) ===
     const biasDB = {
-      "cnn.com": -80, "msnbc.com": -85, "huffpost.com": -75, "nytimes.com": -60, "washingtonpost.com": -65,
-      "theguardian.com": -70, "vox.com": -75, "slate.com": -70, "motherjones.com": -90, "dailykos.com": -85,
-      "jacobinmag.com": -95, "thenation.com": -80, "newyorker.com": -55, "buzzfeednews.com": -70,
-      "npr.org": -30, "apnews.com": -20, "reuters.com": -10, "bbc.com": -15, "abcnews.go.com": -35,
-      "cbsnews.com": -30, "politico.com": -25, "axios.com": -20,
-      "wsj.com": 0, "newsweek.com": 5, "time.com": 0, "usatoday.com": 10,
-      "foxnews.com": 40, "nypost.com": 50, "dailywire.com": 70, "theblaze.com": 75,
-      "nationalreview.com": 60, "washingtonexaminer.com": 55,
-      "breitbart.com": 85, "newsmax.com": 90, "oann.com": 95, "thefederalist.com": 80,
-      "gatewaypundit.com": 90, "infowars.com": 95, "zerohedge.com": 70,
-      "wikipedia.org": 0, "medium.com": 0, "youtube.com": 0, "x.com": 0, "twitter.com": 0
+      "cnn.com": -80, "msnbc.com": -85, "huffpost.com": -75, "nytimes.com": -60,
+      "washingtonpost.com": -65, "theguardian.com": -70, "vox.com": -75, "slate.com": -70,
+      "motherjones.com": -90, "dailykos.com": -85, "jacobinmag.com": -95, "thenation.com": -80,
+      "newyorker.com": -55, "buzzfeednews.com": -70, "npr.org": -30, "apnews.com": -15,
+      "reuters.com": -10, "bbc.com": -15, "abcnews.go.com": -35, "cbsnews.com": -30,
+      "politico.com": -25, "axios.com": -20, "theatlantic.com": -55, "salon.com": -80,
+      "democracynow.org": -90, "commondreams.org": -85,
+      "wsj.com": 5, "newsweek.com": 10, "time.com": 0, "usatoday.com": 15,
+      "forbes.com": 15, "bloomberg.com": 5, "cnbc.com": 10, "economist.com": -5,
+      "wikipedia.org": 0, "medium.com": 0, "youtube.com": 0, "reddit.com": -10,
+      "foxnews.com": 45, "nypost.com": 55, "dailywire.com": 75, "theblaze.com": 80,
+      "nationalreview.com": 65, "washingtonexaminer.com": 60, "breitbart.com": 90,
+      "newsmax.com": 95, "oann.com": 95, "thefederalist.com": 85,
+      "gatewaypundit.com": 95, "infowars.com": 100, "zerohedge.com": 75,
+      "theepochtimes.com": 70, "justthenews.com": 65, "townhall.com": 80,
+      "x.com": 0, "twitter.com": 0, "duckduckgo.com": 0
     };
 
-    function getBias(domain) {
+    function getBias(domain, text = '') {
       domain = (domain || '').toLowerCase().replace(/^www\./, '').split('/')[0];
-      let score = biasDB[domain] || 0;
+      let score = biasDB[domain];
+
+      if (score === undefined || score === 0) {
+        const t = (text || '').toLowerCase();
+        let adj = 0;
+        if (/\b(trump|conservative|republican|right-wing|maga|border|woke)\b/.test(t)) adj += 25;
+        if (/\b(biden|democrat|liberal|left-wing|progressive|climate|equity)\b/.test(t)) adj -= 25;
+        if (/\b(far[- ]right|extremist|conspiracy)\b/.test(t)) adj += 15;
+        if (/\b(far[- ]left|socialist|marxist)\b/.test(t)) adj -= 15;
+        score = (score || 0) + adj;
+        score = Math.max(-100, Math.min(100, score));
+      }
+
       let lean;
       if (score <= -70) lean = "Far Left";
       else if (score <= -40) lean = "Left";
@@ -79,8 +96,9 @@
       else if (score < 40) lean = "Center-Right";
       else if (score < 70) lean = "Right";
       else lean = "Far Right";
+
       const pct = Math.round((score + 100) / 2);
-      return {lean, pct, score};
+      return { lean, pct, score };
     }
 
     const cache = localStorage;
@@ -99,24 +117,22 @@
         fetchWeb(term)
       ]);
 
-      const data = {xPosts, webResults, term, date: Date.now()};
-      try { cache.setItem(key, JSON.stringify(data)); } catch(e) {}
+      const data = { xPosts, webResults, term, date: Date.now() };
+      try { cache.setItem(key, JSON.stringify(data)); } catch (e) {}
       render(data);
     }
 
-    // Best-effort X posts (free public search is heavily restricted in 2026)
     async function fetchXPosts(term) {
-      const q = '#Grokipedia ' + term;
+      const q = term + ' #grokipedia';
       const xSearchUrl = `https://x.com/search?q=${encodeURIComponent(q)}&src=typed_query&f=live`;
-      
-      // Attempt 1: Try a remaining Nitter-style RSS via proxy (often blocked)
       const nitterAttempts = [
         `https://nitter.netbub.com/search/rss?q=${encodeURIComponent(q)}`,
         `https://nitter.tiekoetter.com/search/rss?q=${encodeURIComponent(q)}`
       ];
+
       for (const url of nitterAttempts) {
         try {
-          const r = await fetch(PROXY + url, {signal: AbortSignal.timeout(8000)});
+          const r = await fetch(PROXY + url, { signal: AbortSignal.timeout(6000) });
           if (!r.ok) continue;
           const txt = await r.text();
           if (txt.includes('<item>')) {
@@ -131,7 +147,6 @@
         } catch {}
       }
 
-      // Fallback: direct link + note
       return [{
         title: 'Search #Grokipedia on X',
         body: 'Live free public X search is restricted. Click to open the official search.',
@@ -139,43 +154,42 @@
       }];
     }
 
-    // Reliable keyless web results
     async function fetchWeb(term) {
       const results = [];
 
-      // 1. Wikipedia opensearch (has good CORS or works via proxy)
       try {
         const wikiUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(term)}&limit=6&format=json&origin=*`;
-        const r = await fetch(wikiUrl, {signal: AbortSignal.timeout(7000)});
+        const r = await fetch(wikiUrl, { signal: AbortSignal.timeout(7000) });
         const data = await r.json();
         if (data && data[1]) {
           for (let i = 0; i < data[1].length; i++) {
             const title = data[1][i];
             const url = data[3][i];
             const domain = 'wikipedia.org';
+            const body = data[2][i] || 'Wikipedia article';
             results.push({
               title,
-              body: data[2][i] || 'Wikipedia article',
+              body,
               link: url,
               domain,
-              bias: getBias(domain)
+              bias: getBias(domain, title + ' ' + body)
             });
           }
         }
       } catch {}
 
-      // 2. DuckDuckGo Instant Answer (via proxy if needed)
       try {
         const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(term)}&format=json&no_html=1&skip_disambig=1`;
-        const r = await fetch(PROXY + ddgUrl, {signal: AbortSignal.timeout(7000)});
+        const r = await fetch(PROXY + ddgUrl, { signal: AbortSignal.timeout(7000) });
         const d = await r.json();
         if (d.AbstractText) {
+          const domain = d.AbstractURL ? new URL(d.AbstractURL).hostname.replace(/^www\./, '') : 'duckduckgo.com';
           results.unshift({
             title: d.Heading || term,
             body: d.AbstractText.substring(0, 280) + (d.AbstractText.length > 280 ? '…' : ''),
             link: d.AbstractURL || '#',
-            domain: d.AbstractURL ? new URL(d.AbstractURL).hostname.replace(/^www\./,'') : 'duckduckgo.com',
-            bias: getBias(d.AbstractURL ? new URL(d.AbstractURL).hostname : '')
+            domain,
+            bias: getBias(domain, d.AbstractText || '')
           });
         }
       } catch {}
@@ -186,18 +200,20 @@
     function render(data) {
       document.getElementById('offline').style.display = navigator.onLine ? 'none' : 'block';
 
-      document.getElementById('x-results').innerHTML = data.xPosts.length ? data.xPosts.map(p => `
+      document.getElementById('x-results').innerHTML = data.xPosts.length ? data.xPosts.map(p => {
+        const bias = getBias('x.com', (p.title || '') + ' ' + (p.body || ''));
+        return `
         <div class="entry">
           <strong>${escapeHtml(p.title)}</strong><br>
           <div class="bias-meter-container">
             <div class="bias-meter"></div>
-            <div class="bias-pointer" style="left:50%"></div>
-            <div class="bias-label">X Platform • Neutral</div>
+            <div class="bias-pointer" style="left:${bias.pct}%"></div>
+            <div class="bias-label">\( {bias.lean} ( \){bias.score}) – X</div>
           </div>
-          <small>Bias: Neutral (X)</small><br>
           <p class="note">${escapeHtml(p.body || '')}</p>
-          <a href="${p.link}" target="_blank" style="color:#00aaff">View on X →</a>
-        </div>`).join('') : '<em>No X results available.</em>';
+          <a href="${p.link}" target="_blank">View on X →</a>
+        </div>`;
+      }).join('') : '<em>No X results available.</em>';
 
       document.getElementById('web-results').innerHTML = data.webResults.length ? data.webResults.map(r => `
         <div class="entry">
@@ -208,7 +224,7 @@
             <div class="bias-label">\( {r.bias.lean} ( \){r.bias.score}) – ${r.domain}</div>
           </div>
           <p>${escapeHtml(r.body)}</p>
-          <a href="${r.link}" target="_blank" style="color:#00aaff">Visit →</a>
+          <a href="${r.link}" target="_blank">Visit →</a>
         </div>`).join('') : '<em>No web results – try a different term.</em>';
     }
 
@@ -219,7 +235,6 @@
     document.getElementById('go').onclick = searchVortex;
     document.getElementById('search').onkeydown = e => { if (e.key === 'Enter') searchVortex(); };
 
-    // Load last search
     try {
       const last = Object.keys(cache).filter(k => k.startsWith('cache_'))
         .sort((a, b) => JSON.parse(cache.getItem(b)).date - JSON.parse(cache.getItem(a)).date)[0];
